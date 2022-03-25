@@ -11,7 +11,8 @@ from django.views.decorators.http import require_http_methods
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 
-from .models import Question, AnswerSheet, Student, User, Exam, TestPaper, Answer, ReportCategory, Report, Achievement, UserAchievement
+from .models import Question, AnswerSheet, Student, User, Exam, TestPaper, Answer, ReportCategory, Report, Achievement, \
+    UserAchievement
 from .exceptions import *
 from .decorators import permission_check
 from .definitions import UserType, QuestionType, ExamType, AchievementCategory
@@ -25,13 +26,16 @@ import pandas as pd
 from django.db.models.signals import post_save
 from django.core.signals import request_finished
 from django.dispatch import receiver, Signal
-from .achievement.achievement import TestAchievement, achievement_create, new_user_achievement_create, old_user_achievement_update
+from .achievement.achievement import TestAchievement, achievement_create, new_user_achievement_create, \
+    old_user_achievement_update
 
 request_achievement_signal = Signal(providing_args=['user', 'score', 'exam_type'])
+
 
 @receiver(post_save, sender=Achievement)
 def achievement_create_receiver(sender, instance, **kwargs):
     achievement_create(instance)
+
 
 @receiver(post_save, sender=User)
 def new_user_achievement_create_receiver(sender, instance, created, **kwargs):
@@ -40,7 +44,6 @@ def new_user_achievement_create_receiver(sender, instance, created, **kwargs):
         pass
     else:
         new_user_achievement_create(instance)
-
 
 
 # @receiver(request_finished)
@@ -61,21 +64,20 @@ def post_achievement_receiver(sender, **kwargs):
             user = value
         if key == 'score':
             score = value
-        if key == 'exam_type': # 過濾是哪種考試類別
-            #傳入考試別到函數
+        if key == 'exam_type':  # 過濾是哪種考試類別
+            # 傳入考試別到函數
             if value == 1:
-                achievement_cal = TestAchievement(user, score, value, 5) #建立物件 Exam
+                achievement_cal = TestAchievement(user, score, value, 5)  # 建立物件 Exam
                 achievement_cal.test_achievement()
             elif value == 3:
-                achievement_cal = TestAchievement(user, score, value, 6) #建立物件 listening
+                achievement_cal = TestAchievement(user, score, value, 6)  # 建立物件 listening
                 achievement_cal.test_achievement()
             elif value == 4:
-                achievement_cal = TestAchievement(user, score, value, 7) #建立物件 reading
+                achievement_cal = TestAchievement(user, score, value, 7)  # 建立物件 reading
                 achievement_cal.test_achievement()
 
 
-
-#再寫個Signal
+# 再寫個Signal
 @require_http_methods(["GET", "POST"])
 @permission_check(UserType.Testee)
 def accept_achievement(request, achievement_id, achievement_category):
@@ -92,32 +94,32 @@ def accept_achievement(request, achievement_id, achievement_category):
 
         print(achievement_category)
 
-        achievement_cal = TestAchievement(request.user.id, int(achievement_category)) #建立物件
+        achievement_cal = TestAchievement(request.user.id, int(achievement_category))  # 建立物件
         result = achievement_cal.test_achievement()
 
         if result != None:
-            messages.success(request,"You get the achievement {}".format(result))
+            messages.success(request, "You get the achievement {}".format(result))
             return redirect("testee_achievement_list")
         else:
             messages.success(request, "Accept achievement successfully! ")
             return redirect("testee_achievement_list")
 
 
-
 @permission_check(UserType.Testee)
 def achievement_list(request):
     all_achievements = Achievement.objects.all()
-    #還沒接的成就
-    unreceived_achievements = Achievement.objects.all().exclude(userachievements__user=request.user).filter(level__lte=request.user.level)
+    # 還沒接的成就
+    unreceived_achievements = Achievement.objects.all().exclude(userachievements__user=request.user).filter(
+        level__lte=request.user.level)
 
-    #已經接的成就
+    # 已經接的成就
     received_achievements = UserAchievement.objects.all().filter(user=request.user).filter(unlock=False)
 
-
-    #已完成成就
+    # 已完成成就
     completed_achievements = UserAchievement.objects.all().filter(user=request.user).filter(unlock=True)
 
     return render(request, 'testee/achievement.html', locals())
+
 
 def leaderboard(request):
     now_time = datetime.now()
@@ -135,8 +137,6 @@ def leaderboard(request):
     return render(request, 'testee/leaderboard.html', locals())
 
 
-
-
 @permission_check(UserType.Testee)
 def exam_list(request):
     examList = []
@@ -152,38 +152,33 @@ def exam_list(request):
 
     return render(request, 'testee/exam_list.html', locals())
 
+
 @permission_check(UserType.Testee)
 def pending(request, exam_id):
     exam = Exam.objects.get(id=exam_id)
-    
-    if exam.remaining_time is not None: 
+
+    if exam.remaining_time is not None:
         now_time = datetime.now()
         exam.remaining_time = exam.remaining_time - timedelta.total_seconds(now_time - exam.modified_time)
         exam.save()
 
     return redirect('testee_exam_list')
 
+
 @permission_check(UserType.Testee)
 @require_http_methods(["GET"])
 def score_list(request):
     answer_sheets = AnswerSheet.objects.all().filter(user=request.user)
     answer_sheets_all = answer_sheets.order_by('-exam__created_time')
-    answer_sheets_reading = answer_sheets.filter(exam__name__contains="閱讀練習").order_by('-exam__created_time')
-    answer_sheets_listening = answer_sheets.filter(exam__name__contains="聽力練習").order_by('-exam__created_time')
-    answer_sheets_exam = answer_sheets.exclude(exam__name__contains="閱讀練習").exclude(exam__name__contains="聽力練習").order_by('-exam__created_time')
+    answer_sheets_exam = answer_sheets.exclude(exam__name__contains="閱讀練習").exclude(
+        exam__name__contains="聽力練習").order_by('-exam__created_time')
 
+    EXAM_QUALIFICATION = {'qualified': 0, 'unqualified': 0}
+    EXAM_SCORE_RANGE = {'zero': 0, 'one': 0, 'two': 0, 'three': 0, 'four': 0, 'five': 0, 'six': 0, 'seven': 0,
+                        'eight': 0, 'nine': 0, 'ten': 0}
 
-
-    EXAM_QUALIFICATION = {'qualified': 0,'unqualified': 0}
-    READING_QUALIFICATION = {'qualified': 0,'unqualified': 0}
-    LISTENING_QUALIFICATION = {'qualified': 0,'unqualified': 0}
-
-    EXAM_SCORE_RANGE = {'zero':0, 'one': 0,'two': 0,'three': 0,'four': 0,'five': 0,'six': 0,'seven': 0,'eight': 0,'nine': 0, 'ten': 0}
-    READING_SCORE_RANGE = {'zero':0, 'one': 0,'two': 0,'three': 0,'four': 0,'five': 0,'six': 0,'seven': 0,'eight': 0,'nine': 0, 'ten': 0}
-    LISTENING_SCORE_RANGE = {'zero':0, 'one': 0,'two': 0,'three': 0,'four': 0,'five': 0,'six': 0,'seven': 0,'eight': 0,'nine': 0, 'ten': 0}
-
-    #EXAM
-    #計算是否及格
+    # EXAM
+    # 計算是否及格
     for answer_sheet in answer_sheets_exam:
         if answer_sheet.score is None:
             pass
@@ -192,7 +187,7 @@ def score_list(request):
         else:
             EXAM_QUALIFICATION['unqualified'] += 1
 
-    #計算成績分布
+    # 計算成績分布
     for answer_sheet in answer_sheets_exam:
         count = 0
         if answer_sheet.score is None:
@@ -211,136 +206,40 @@ def score_list(request):
                     else:
                         count += 10
 
-    #READING
-    #計算是否及格
-    for answer_sheet in answer_sheets_reading:
-        if answer_sheet.score is None:
-            pass
-        elif answer_sheet.score >= 60:
-            READING_QUALIFICATION['qualified'] += 1
-        else:
-            READING_QUALIFICATION['unqualified'] += 1
-
-    #計算成績分布
-    for answer_sheet in answer_sheets_reading:
-        count = 0
-        if answer_sheet.score is None:
-            pass
-        else:
-            if count <= answer_sheet.score < count + 10:
-                READING_SCORE_RANGE['zero'] += 1
-            else:
-                count += 10
-                for name in list(READING_SCORE_RANGE.keys())[1:]:
-                    if count <= answer_sheet.score < count + 10:
-                        READING_SCORE_RANGE[name] += 1
-                        break
-                    elif count < answer_sheet.score == 100:
-                        EXAM_SCORE_RANGE['ten'] += 1
-                    else:
-                        count += 10
-    #LISTENING
-    #計算是否及格
-    for answer_sheet in answer_sheets_listening:
-        if answer_sheet.score is None:
-            pass
-        elif answer_sheet.score >= 60:
-            LISTENING_QUALIFICATION['qualified'] += 1
-        else:
-            LISTENING_QUALIFICATION['unqualified'] += 1
-
-    #計算成績分布
-    for answer_sheet in answer_sheets_listening:
-        count = 0
-        if answer_sheet.score is None:
-            pass
-        else:
-            if count <= answer_sheet.score < count + 10:
-                LISTENING_SCORE_RANGE['zero'] += 1
-            else:
-                count += 10
-                for name in list(LISTENING_SCORE_RANGE.keys())[1:]:
-                    if count <= answer_sheet.score < count + 10:
-                        LISTENING_SCORE_RANGE[name] += 1
-                        break
-                    elif count < answer_sheet.score == 100:
-                        EXAM_SCORE_RANGE['ten'] += 1
-                    else:
-                        count += 10
     # xaxis : Score
     # yaxis : Times
     # Bar chart
-    x_data = [ str(num) for num in range(0, 101, 10)]
+    x_data = [str(num) for num in range(0, 101, 10)]
     y_exam_data = list(EXAM_SCORE_RANGE.values())
-    y_reading_data = list(READING_SCORE_RANGE.values())
-    y_listening_data = list(LISTENING_SCORE_RANGE.values())
-    color = ['#FF0000','#FF5B00','#FF7900','#FFB600','#FFE700','#E1FF00','#B6FF00','#86FF00','#55FF00','#18FF00', '#18FF00']
+    color = ['#FF0000', '#FF5B00', '#FF7900', '#FFB600', '#FFE700', '#E1FF00', '#B6FF00', '#86FF00', '#55FF00',
+             '#18FF00', '#18FF00']
 
-    #Exam
-    df = pd.DataFrame(list(zip(x_data,y_exam_data)))
+    # Exam
+    df = pd.DataFrame(list(zip(x_data, y_exam_data)))
 
     df['color'] = color
     df = df.rename(columns={0: 'score', 1: 'time'})
 
-
     trace = go.Bar(x=df['score'], y=df['time'],
-                opacity=0.8,
-                marker_color=df['color'])
-    data=[trace]
+                   opacity=0.8,
+                   marker_color=df['color'])
+    data = [trace]
     layout = go.Layout(
         title='Exam考試總成績分佈',
-        xaxis = dict(title = '成績'),
-        yaxis = dict(title = '考試成績範圍次數')
+        xaxis=dict(title='成績'),
+        yaxis=dict(title='考試成績範圍次數')
     )
     fig = go.Figure(data=data, layout=layout)
     exam_bar_chart = pyo.plot(fig, output_type='div')
 
-    #Reading
-    df = pd.DataFrame(list(zip(x_data,y_reading_data)))
-
-    df['color'] = color
-    df = df.rename(columns={0: 'score', 1: 'time'})
-
-
-    trace = go.Bar(x=df['score'], y=df['time'],
-                opacity=0.8,
-                marker_color=df['color'])
-    data=[trace]
-    layout = go.Layout(
-        title='Reading練習總成績分佈',
-        xaxis = dict(title = '成績'),
-        yaxis = dict(title = '考試成績範圍次數')
-    )
-    fig = go.Figure(data=data, layout=layout)
-    reading_bar_chart = pyo.plot(fig, output_type='div')
-
-    #Listening
-    df = pd.DataFrame(list(zip(x_data,y_listening_data)))
-
-    df['color'] = color
-    df = df.rename(columns={0: 'score', 1: 'time'})
-
-
-    trace = go.Bar(x=df['score'], y=df['time'],
-                opacity=0.8,
-                marker_color=df['color'])
-    data=[trace]
-    layout = go.Layout(
-        title='Listening練習總成績分佈',
-        xaxis = dict(title = '成績'),
-        yaxis = dict(title = '考試成績範圍次數')
-    )
-    fig = go.Figure(data=data, layout=layout)
-    listening_bar_chart = pyo.plot(fig, output_type='div')
-
     # Pie chart
     qualify = ['合格', '不合格']
     colors = ['green', 'red']
-    #Exam
-    trace = go.Pie(labels = qualify,
-                   values = list(EXAM_QUALIFICATION.values()),
-                   hole = .4,
-                   type= 'pie')
+    # Exam
+    trace = go.Pie(labels=qualify,
+                   values=list(EXAM_QUALIFICATION.values()),
+                   hole=.4,
+                   type='pie')
 
     data = [trace]
     layout = go.Layout({
@@ -358,53 +257,6 @@ def score_list(request):
     fig = go.Figure(data=data, layout=layout)
     fig.update_traces(marker=dict(colors=colors))
     exam_pie_chart = pyo.plot(fig, output_type='div')
-    #Reading
-    trace = go.Pie(labels = qualify,
-                   values = list(READING_QUALIFICATION.values()),
-                   hole = .4,
-                   type= 'pie')
-
-    data = [trace]
-    layout = go.Layout({
-        'title': 'Reading練習合格率分析',
-        'annotations': [
-             {
-                'font': {
-                   'size': 20
-                },
-                'showarrow': False,
-                'text': '合格率',
-             },
-          ]
-        }
-    )
-    fig = go.Figure(data=data, layout=layout)
-    fig.update_traces(marker=dict(colors=colors))
-    reading_pie_chart = pyo.plot(fig, output_type='div')
-
-    #Listening
-    trace = go.Pie(labels = qualify,
-                   values = list(LISTENING_QUALIFICATION.values()),
-                   hole = .4,
-                   type= 'pie')
-
-    data = [trace]
-    layout = go.Layout({
-        'title': 'Listening練習合格率分析',
-        'annotations': [
-             {
-                'font': {
-                   'size': 20
-                },
-                'showarrow': False,
-                'text': '合格率',
-             },
-          ]
-        }
-    )
-    fig = go.Figure(data=data, layout=layout)
-    fig.update_traces(marker=dict(colors=colors))
-    listening_pie_chart = pyo.plot(fig, output_type='div')
 
     page = request.GET.get('page', 1)
     paginator = Paginator(answer_sheets, 10)
@@ -416,11 +268,8 @@ def score_list(request):
     except EmptyPage:
         answersheetList = paginator.page(paginator.num_pages)
 
-    context = {'answer_sheets_exam':answer_sheets_exam, 'answer_sheets_reading':answer_sheets_reading, 'answer_sheets_listening': answer_sheets_listening,
-                'exam_bar_chart':exam_bar_chart, 'exam_pie_chart':exam_pie_chart,
-                'reading_bar_chart':reading_bar_chart, 'reading_pie_chart':reading_pie_chart,
-                'listening_bar_chart':listening_bar_chart, 'listening_pie_chart':listening_pie_chart,
-                }
+    context = {'answer_sheets_exam': answer_sheets_exam, 'exam_bar_chart': exam_bar_chart,
+               'exam_pie_chart': exam_pie_chart}
 
     return render(request, 'testee/score_list.html', context)
 
@@ -433,16 +282,19 @@ def practice_create(request, kind):
 
         duration = request.POST.get('duration')
         finish_time = None
-        
+
         if duration == "":
             remaining_time = None
         else:
-            remaining_time = int(duration) * 60 # turn to seconds
-            #finish_time = datetime.strptime(datetime.now().strftime('%Y-%m-%d %H:%M:%S'), '%Y-%m-%d %H:%M:%S') + timedelta(minutes=int(duration))
+            remaining_time = int(duration) * 60  # turn to seconds
+            # finish_time = datetime.strptime(datetime.now().strftime('%Y-%m-%d %H:%M:%S'), '%Y-%m-%d %H:%M:%S') + timedelta(minutes=int(duration))
 
         question_num = int(request.POST.get('question_num', ))
 
-        practice_type = ExamType.Listening if kind == 'listening' else ExamType.Reading
+        if kind == 'listening':
+            practice_type = ExamType.Listening
+        elif kind == 'reading':
+            practice_type = ExamType.Reading
 
         # getlist's element type is str.
         selected_types = request.POST.getlist('question_type', )
@@ -476,7 +328,6 @@ def view_answersheet_content(request, answersheet_id):
     try:
         answersheet = AnswerSheet.objects.get(id=answersheet_id)
 
-
         if answersheet.exam.is_public:
             if answersheet.is_finished == False:
                 messages.warning(request, _("You hadn't finish your test, please keep answering the exam"))
@@ -495,32 +346,29 @@ def view_answersheet_content(request, answersheet_id):
                 answersheet_id))
         return redirect('testee_score_list')
 
-
-
     if answersheet.is_finished:
         if answersheet.exam.exam_type == 1:
-            exam_average_score = answersheet.exam.average_score #平均成績
-            #PR = (100/有考試成績的人數*贏過的人數)+(100/有考試成績的人數*1/2)
-            exam_score_list = list(AnswerSheet.objects.filter(exam = answersheet.exam.id).order_by("score").exclude(score=None))
-            testee_count = len(exam_score_list) #有考試成績的人數
-
+            exam_average_score = answersheet.exam.average_score  # 平均成績
+            # PR = (100/有考試成績的人數*贏過的人數)+(100/有考試成績的人數*1/2)
+            exam_score_list = list(
+                AnswerSheet.objects.filter(exam=answersheet.exam.id).order_by("score").exclude(score=None))
+            testee_count = len(exam_score_list)  # 有考試成績的人數
 
             testee_surpassed = 0
             for exam_score in exam_score_list:
                 if request.user.id != exam_score.user_id:
-                    testee_surpassed+=1
+                    testee_surpassed += 1
                 else:
                     break
 
-            PR = int((100/testee_count*testee_surpassed)+(100/testee_count*1/2))
+            PR = int((100 / testee_count * testee_surpassed) + (100 / testee_count * 1 / 2))
             rank = testee_count - testee_surpassed
-
 
         answers = answersheet.answer_set.all()
         questions = Question.objects.all().filter(favorite=request.user)
-        question_correction_list, q_type_list= testee.question_correction(answersheet)
+        question_correction_list, q_type_list = testee.question_correction(answersheet)
         is_favorite = []
-        #return 那題題目 is True or False 的 list
+        # return 那題題目 is True or False 的 list
         for answer in answers:
             try:
                 questions.get(id=answer.question.id)
@@ -551,80 +399,80 @@ def view_answersheet_content(request, answersheet_id):
                     listening += 1
                 else:
                     reading += 1
-        #沒聽力也沒閱讀
+        # 沒聽力也沒閱讀
         if listening == 0 and reading == 0:
             return render(request, 'testee/answersheet_content.html', locals())
 
         else:
-            #有聽力有閱讀
+            # 有聽力有閱讀
             if listening != 0 and reading != 0:
-                listening_correct_percentage  = int(listening_correct/ listening * 100)
+                listening_correct_percentage = int(listening_correct / listening * 100)
                 listening_wrong_percentage = 100 - listening_correct_percentage
-                reading_correct_percentage = int(reading_correct/ reading * 100)
+                reading_correct_percentage = int(reading_correct / reading * 100)
                 reading_wrong_percentage = 100 - reading_correct_percentage
                 y_data = ['Listening', 'Reading']
                 x_data1 = [listening_correct_percentage, reading_correct_percentage]
                 x_data2 = [listening_wrong_percentage, reading_wrong_percentage]
-                width=[0.5, 0.5]
+                width = [0.5, 0.5]
 
-            #沒有閱讀題，代表只有聽力
+            # 沒有閱讀題，代表只有聽力
             elif reading == 0:
-                listening_correct_percentage  = int(listening_correct/ listening * 100)
+                listening_correct_percentage = int(listening_correct / listening * 100)
                 listening_wrong_percentage = 100 - listening_correct_percentage
                 y_data = ['Listening']
                 x_data1 = [listening_correct_percentage]
                 x_data2 = [listening_wrong_percentage]
-                width=[0.25, 0.25]
+                width = [0.25, 0.25]
 
-            #沒有聽力題，代表只有閱讀
+            # 沒有聽力題，代表只有閱讀
             if listening == 0:
-                reading_correct_percentage = int(reading_correct/ reading * 100)
+                reading_correct_percentage = int(reading_correct / reading * 100)
                 reading_wrong_percentage = 100 - reading_correct_percentage
                 y_data = ['Reading']
                 x_data1 = [reading_correct_percentage]
                 x_data2 = [reading_wrong_percentage]
-                width=[0.25, 0.25]
+                width = [0.25, 0.25]
 
-
-            #x_axis: category of Listening or READING
-            #y_axis: correction percentage
+            # x_axis: category of Listening or READING
+            # y_axis: correction percentage
             trace1 = go.Bar(
-                y = y_data,
-                x = x_data1,
+                y=y_data,
+                x=x_data1,
                 width=width,
-                name = '正確率',
-                orientation = 'h',
+                name='正確率',
+                orientation='h',
                 marker=dict(color='#44E18F',
                             line=dict(width=1)
                             )
             )
 
             trace2 = go.Bar(
-                y = y_data,
-                x = x_data2,
+                y=y_data,
+                x=x_data2,
                 width=width,
-                name = '錯誤率',
-                orientation = 'h',
+                name='錯誤率',
+                orientation='h',
                 marker=dict(color='#FA483C',
                             line=dict(width=1)
                             )
-                            )
+            )
             data = [trace1, trace2]
 
             layout = go.Layout(
                 title="本次答題正確率",
-                barmode = 'stack'
+                barmode='stack'
             )
             fig = go.Figure(data=data, layout=layout)
             correction_bar_chart = pyo.plot(fig, output_type='div')
 
             return render(request, 'testee/answersheet_content.html', locals())
-    elif answersheet.is_finished  == False and now_time > answersheet.finish_time:
+    elif answersheet.is_finished == False and now_time > answersheet.finish_time:
         messages.success(request, {{trans("You hadn't finish your test, please keep answering the exam")}})
         return redirect('testee_exam_list')
     else:
         messages.warning(request, 'Does not finished this practice. Reject your request.')
         return redirect('testee_score_list')
+
 
 @permission_check(UserType.Testee)
 def favorite_question(request, question_id, answersheet_id):
@@ -648,7 +496,7 @@ def favorite_question_list(request):
     favorite_questions_search = Question.objects.all().filter(favorite=request.user)
     question_types = [_ for _ in QuestionType]
 
-    difficulty_choices =[
+    difficulty_choices = [
         (1, _('Easy')),
         (2, _('Medium')),
         (3, _('Hard'))
@@ -674,7 +522,8 @@ def favorite_question_list(request):
     query_content, favorite_questions_search = testee.query_questions(**keywords)
 
     page = request.GET.get('page', 1)
-    paginator = Paginator(favorite_questions_search, 20)  # the second parameter is used to display how many items. Now is display 10
+    paginator = Paginator(favorite_questions_search,
+                          20)  # the second parameter is used to display how many items. Now is display 10
 
     try:
         questionList = paginator.page(page)
@@ -684,6 +533,7 @@ def favorite_question_list(request):
         questionList = paginator.page(paginator.num_pages)
 
     return render(request, 'testee/favorite_question_list.html', locals())
+
 
 @permission_check(UserType.Testee)
 def favorite_question_delete(request, question_id):
@@ -697,6 +547,7 @@ def favorite_question_delete(request, question_id):
         return redirect('favorite_question_list')
     except ObjectDoesNotExist:
         return redirect('favorite_question_list')
+
 
 @permission_check(UserType.Testee)
 @require_http_methods(["GET"])
@@ -742,8 +593,9 @@ def start_exam(request, exam_id):
         answer_sheet.is_tested = True
         answer_sheet.save()
         return redirect('testee_answering',
-                    exam_id=exam.id,
-                    answer_id=Answer.objects.filter(answer_sheet=answer_sheet)[0].id)   # transfer the first question
+                        exam_id=exam.id,
+                        answer_id=Answer.objects.filter(answer_sheet=answer_sheet)[0].id)  # transfer the first question
+
 
 @permission_check(UserType.Testee)
 @require_http_methods(["GET"])
@@ -752,7 +604,7 @@ def start_practice(request, exam_id):
         exam = Exam.objects.get(id=exam_id)
 
         now_time = datetime.now()
-        
+
         if not exam.is_public:
             pass
         elif exam.start_time < now_time < exam.finish_time:
@@ -763,13 +615,13 @@ def start_practice(request, exam_id):
         elif now_time > exam.finish_time:
             messages.warning(request, 'Exam had finished.')
             return redirect('testee_exam_list')
-        
+
         exam.is_started = True
-        
+
         if exam.remaining_time is not None:
             exam.modified_time = now_time
             exam.finish_time = exam.modified_time + timedelta(seconds=exam.remaining_time)
-        
+
         exam.save()
 
     except ObjectDoesNotExist:
@@ -794,8 +646,9 @@ def start_practice(request, exam_id):
             Answer.objects.create(answer_sheet=answer_sheet, question=question)
 
     return redirect('testee_answering',
-                        exam_id=exam.id,
-                        answer_id=Answer.objects.filter(answer_sheet=answer_sheet)[0].id)   # transfer the first question
+                    exam_id=exam.id,
+                    answer_id=Answer.objects.filter(answer_sheet=answer_sheet)[0].id)  # transfer the first question
+
 
 @permission_check(UserType.Testee)
 @require_http_methods(["GET", "POST"])
@@ -829,7 +682,7 @@ def answering(request, exam_id, answer_id):
                        'Answer id error, answer id: {}'.format(answer_id))
         return redirect('testee_exam_list')
 
-    answer_count  = len(Answer.objects.filter(answer_sheet=answer_sheet).filter(selected=-1))
+    answer_count = len(Answer.objects.filter(answer_sheet=answer_sheet).filter(selected=-1))
 
     if request.method == 'POST':
         answering_ans = Answer.objects.get(id=answer_id)
@@ -838,14 +691,14 @@ def answering(request, exam_id, answer_id):
         answering_ans.selected = selected_answer
         answering_ans.save()
 
-        answer_count  = len(Answer.objects.filter(answer_sheet=answer_sheet).filter(selected=-1))
+        answer_count = len(Answer.objects.filter(answer_sheet=answer_sheet).filter(selected=-1))
 
-        #還有題目尚未回答
-        #answer_count == 0 : 所有題目已答題
-        #answer_count != 0 : 還有題目未答題
+        # 還有題目尚未回答
+        # answer_count == 0 : 所有題目已答題
+        # answer_count != 0 : 還有題目未答題
         if answer_count != 0:
             the_next_question = list(
-                    Answer.objects.filter(answer_sheet=answer_sheet).filter(selected=-1)).pop(0)
+                Answer.objects.filter(answer_sheet=answer_sheet).filter(selected=-1)).pop(0)
             return redirect('testee_answering',
                             exam_id=exam_id,
                             answer_id=the_next_question.id)
@@ -939,8 +792,12 @@ def submit_answersheet(request, exam_id):
     answer_sheet = AnswerSheet.objects.get(exam=exam, user=request.user)
     score = testmanager.calculate_score(exam.id, answer_sheet)
     messages.success(request, _('You had finished the exam.'))
-    request_achievement_signal.send(sender='AnswerSheet', user = request.user.id, score = score, exam_type = exam.exam_type)
-    return redirect('testee_score_list')
+    request_achievement_signal.send(sender='AnswerSheet', user=request.user.id, score=score, exam_type=exam.exam_type)
+    # if exam.type_choice() == '4':
+    #    return redirect('testee_score_list')
+    # else:
+    #    return redirect('testee_listening_list')
+
 
 # Settle exam score directly.
 @permission_check(UserType.Testee)
@@ -951,11 +808,12 @@ def settle(request, exam_id):
             answer_sheet = AnswerSheet.objects.get(exam=exam,
                                                    user=request.user)
             score = testmanager.calculate_score(exam.id, answer_sheet)
-            request_achievement_signal.send(sender='AnswerSheet', user = request.user.id, score = score, exam_type = exam.exam_type)
+            request_achievement_signal.send(sender='AnswerSheet', user=request.user.id, score=score,
+                                            exam_type=exam.exam_type)
             messages.success(
                 request,
                 "You have settled this exam score directly. You got {} point in this exam."
-                .format(score))
+                    .format(score))
             return redirect('testee_score_list')
         except ObjectDoesNotExist:
             messages.error(request,
@@ -1008,3 +866,207 @@ def report_question(request, question_id):
                              "This question had been reported, thank you.")
             return redirect(request.META.get('HTTP_REFERER'))
         return render(request, 'testee/report_question.html', locals())
+
+
+def reading_score(request):
+    answer_sheets = AnswerSheet.objects.all().filter(user=request.user)
+    answer_sheets_all = answer_sheets.order_by('-exam__created_time')
+    answer_sheets_reading = answer_sheets.filter(exam__name__contains="閱讀練習").order_by('-exam__created_time')
+    READING_QUALIFICATION = {'qualified': 0, 'unqualified': 0}
+    READING_SCORE_RANGE = {'zero': 0, 'one': 0, 'two': 0, 'three': 0, 'four': 0, 'five': 0, 'six': 0, 'seven': 0,
+                           'eight': 0, 'nine': 0, 'ten': 0}
+
+    # READING
+    # 計算是否及格
+    for answer_sheet in answer_sheets_reading:
+        if answer_sheet.score is None:
+            pass
+        elif answer_sheet.score >= 60:
+            READING_QUALIFICATION['qualified'] += 1
+        else:
+            READING_QUALIFICATION['unqualified'] += 1
+
+    # 計算成績分布
+    for answer_sheet in answer_sheets_reading:
+        count = 0
+        if answer_sheet.score is None:
+            pass
+        else:
+            if count <= answer_sheet.score < count + 10:
+                READING_SCORE_RANGE['zero'] += 1
+            else:
+                count += 10
+                for name in list(READING_SCORE_RANGE.keys())[1:]:
+                    if count <= answer_sheet.score < count + 10:
+                        READING_SCORE_RANGE[name] += 1
+                        break
+                    # elif count < answer_sheet.score == 100:
+                    # EXAM_SCORE_RANGE['ten'] += 1
+                    else:
+                        count += 10
+    # xaxis : Score
+    # yaxis : Times
+    # Bar chart
+    x_data = [str(num) for num in range(0, 101, 10)]
+    y_reading_data = list(READING_SCORE_RANGE.values())
+    color = ['#FF0000', '#FF5B00', '#FF7900', '#FFB600', '#FFE700', '#E1FF00', '#B6FF00', '#86FF00', '#55FF00',
+             '#18FF00', '#18FF00']
+    # Reading
+    df = pd.DataFrame(list(zip(x_data, y_reading_data)))
+
+    df['color'] = color
+    df = df.rename(columns={0: 'score', 1: 'time'})
+
+    trace = go.Bar(x=df['score'], y=df['time'],
+                   opacity=0.8,
+                   marker_color=df['color'])
+    data = [trace]
+    layout = go.Layout(
+        title='Reading練習總成績分佈',
+        xaxis=dict(title='成績'),
+        yaxis=dict(title='考試成績範圍次數')
+    )
+    fig = go.Figure(data=data, layout=layout)
+    reading_bar_chart = pyo.plot(fig, output_type='div')
+    # Pie chart
+    qualify = ['合格', '不合格']
+    colors = ['green', 'red']
+    # Reading
+    trace = go.Pie(labels=qualify,
+                   values=list(READING_QUALIFICATION.values()),
+                   hole=.4,
+                   type='pie')
+
+    data = [trace]
+    layout = go.Layout({
+        'title': 'Reading練習合格率分析',
+        'annotations': [
+            {
+                'font': {
+                    'size': 20
+                },
+                'showarrow': False,
+                'text': '合格率',
+            },
+        ]
+    }
+    )
+    fig = go.Figure(data=data, layout=layout)
+    fig.update_traces(marker=dict(colors=colors))
+    reading_pie_chart = pyo.plot(fig, output_type='div')
+    page = request.GET.get('page', 1)
+    paginator = Paginator(answer_sheets, 10)
+
+    try:
+        answersheetList = paginator.page(page)
+    except PageNotAnInteger:
+        answersheetList = paginator.page(1)
+    except EmptyPage:
+        answersheetList = paginator.page(paginator.num_pages)
+
+    context = {'answer_sheets_reading': answer_sheets_reading, 'reading_bar_chart': reading_bar_chart,
+               'reading_pie_chart': reading_pie_chart, }
+    return render(request, 'testee/reading_score_list.html', locals())
+
+
+def listening_score(request):
+    answer_sheets = AnswerSheet.objects.all().filter(user=request.user)
+    answer_sheets_all = answer_sheets.order_by('-exam__created_time')
+    answer_sheets_listening = answer_sheets.filter(exam__name__contains="聽力練習").order_by('-exam__created_time')
+    LISTENING_QUALIFICATION = {'qualified': 0, 'unqualified': 0}
+    LISTENING_SCORE_RANGE = {'zero': 0, 'one': 0, 'two': 0, 'three': 0, 'four': 0, 'five': 0, 'six': 0, 'seven': 0,
+                             'eight': 0, 'nine': 0, 'ten': 0}
+
+    # LISTENING
+    # 計算是否及格
+    for answer_sheet in answer_sheets_listening:
+        if answer_sheet.score is None:
+            pass
+        elif answer_sheet.score >= 60:
+            LISTENING_QUALIFICATION['qualified'] += 1
+        else:
+            LISTENING_QUALIFICATION['unqualified'] += 1
+
+    # 計算成績分布
+    for answer_sheet in answer_sheets_listening:
+        count = 0
+        if answer_sheet.score is None:
+            pass
+        else:
+            if count <= answer_sheet.score < count + 10:
+                LISTENING_SCORE_RANGE['zero'] += 1
+            else:
+                count += 10
+                for name in list(LISTENING_SCORE_RANGE.keys())[1:]:
+                    if count <= answer_sheet.score < count + 10:
+                        LISTENING_SCORE_RANGE[name] += 1
+                        break
+                    elif count < answer_sheet.score == 100:
+                        EXAM_SCORE_RANGE['ten'] += 1
+                    else:
+                        count += 10
+    # xaxis : Score
+    # yaxis : Times
+    # Bar chart
+    x_data = [str(num) for num in range(0, 101, 10)]
+    y_listening_data = list(LISTENING_SCORE_RANGE.values())
+    color = ['#FF0000', '#FF5B00', '#FF7900', '#FFB600', '#FFE700', '#E1FF00', '#B6FF00', '#86FF00', '#55FF00',
+             '#18FF00', '#18FF00']
+    # Listening
+    df = pd.DataFrame(list(zip(x_data, y_listening_data)))
+
+    df['color'] = color
+    df = df.rename(columns={0: 'score', 1: 'time'})
+
+    trace = go.Bar(x=df['score'], y=df['time'],
+                   opacity=0.8,
+                   marker_color=df['color'])
+    data = [trace]
+    layout = go.Layout(
+        title='Listening練習總成績分佈',
+        xaxis=dict(title='成績'),
+        yaxis=dict(title='考試成績範圍次數')
+    )
+    fig = go.Figure(data=data, layout=layout)
+    listening_bar_chart = pyo.plot(fig, output_type='div')
+
+    # Pie chart
+    qualify = ['合格', '不合格']
+    colors = ['green', 'red']
+    # Listening
+    trace = go.Pie(labels=qualify,
+                   values=list(LISTENING_QUALIFICATION.values()),
+                   hole=.4,
+                   type='pie')
+
+    data = [trace]
+    layout = go.Layout({
+        'title': 'Listening練習合格率分析',
+        'annotations': [
+            {
+                'font': {
+                    'size': 20
+                },
+                'showarrow': False,
+                'text': '合格率',
+            },
+        ]
+    }
+    )
+    fig = go.Figure(data=data, layout=layout)
+    fig.update_traces(marker=dict(colors=colors))
+    listening_pie_chart = pyo.plot(fig, output_type='div')
+
+    page = request.GET.get('page', 1)
+    paginator = Paginator(answer_sheets, 10)
+
+    try:
+        answersheetList = paginator.page(page)
+    except PageNotAnInteger:
+        answersheetList = paginator.page(1)
+    except EmptyPage:
+        answersheetList = paginator.page(paginator.num_pages)
+
+    context = {'answer_sheets_listening': answer_sheets_listening, 'listening_bar_chart': listening_bar_chart,
+               'listening_pie_chart': listening_pie_chart}
+    return render(request, 'testee/listening_score_list.html', locals())

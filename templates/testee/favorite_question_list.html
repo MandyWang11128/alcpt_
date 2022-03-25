@@ -1,7 +1,7 @@
 {% extends 'new_base.html' %}
 
 {% block stylesheets %}
-<!-- <link rel="stylesheet" type="text/css" href="{{ static('/css/testee/favorite_question_list.css') }}" /> -->
+<!--<link rel="stylesheet" type="text/css" href="{{ static('/css/testee/favorite_question_list.css') }}" />-->
 {% endblock %}
 
 {% block scripts %}
@@ -41,12 +41,19 @@
                     {% endif %}
 
                     <button class="btn btn-primary btn-group-justified" type="submit">
-                        <i class="fa fa-search"></i>
-                    </button>
+		    	<i class="fa fa-search"></i>
+		    </button>&nbsp
+		    <div class="dropdown">
+  			<button class="btn btn-outline-primary dropdown-toggle dropdown-toggle-split" type="button" data-toggle="dropdown" style="width:105px;text-align:left">Practice <span class="caret"></span></button>
+			<ul class="dropdown-menu">
+				<a class="dropdown-item" href="{{ url('testee_practice_create', args=['reading']) }}"><i class="fas fa-book"></i>{{ trans("Reading Practice") }}</a>
+				<a class="dropdown-item" href="{{ url('testee_practice_create', args=['listening']) }}"><i class="fas fa-headphones-alt"></i>{{ trans("Listening Practice") }}</a>
+		        </ul>
+	            </div>
                 </form>
             </div>
         </div>
-        <div class="row justify-content-center">
+	<div class="row justify-content-center">
             <div class="col-md-12">
                 <h2>{{trans("Favorite Question")}}</h2>
                 <div class="table-responsive">

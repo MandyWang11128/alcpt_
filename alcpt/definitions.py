@@ -45,7 +45,7 @@ class ExamType(Enum):
     Practice = (2, '綜合練習')
     Listening = (3, '聽力練習')
     Reading = (4, '閱讀練習')
-
+    Favorite = (5, '我的最愛題目練習')
 
 class Identity(Enum):
     Visitor = (1, _('Visitor'))

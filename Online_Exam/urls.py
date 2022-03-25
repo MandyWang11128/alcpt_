@@ -352,8 +352,9 @@ urlpatterns = [
         ])),
 
     # 受測者部分
-    re_path(r'^testee$', testee.score_list,
-            name='testee_score_list'),  # 受測者主頁（顯示自我成績）
+    re_path(r'^reading_score$', testee.reading_score,name = 'testee_reading_list'),
+    re_path(r'^listening_score$', testee.listening_score,name = 'testee_listening_list'),
+    re_path(r'^testee$', testee.score_list,name = 'testee_score_list'),  # 受測者主頁（顯示自我成績）
     re_path(
         r'^testee/',
         include([
@@ -567,6 +568,9 @@ re_path(
         re_path(r'^edit/(?P<reg_id>[a-zA-Z0-9]+)$',
                 system.user_edit,
                 name='user_edit'),
+        re_path(r'^delete/(?P<reg_id>[a-zA-Z0-9]+)$',
+                system.user_del,
+                name='user_del'),
         re_path(r'^unit_list/$', system.unit, name='unit_list'),
         re_path(
             r'^unit_list/',
@@ -756,7 +760,7 @@ re_path(
                 re_path(r'^pending/(?P<exam_id>[0-9]+)$',
                         testee.pending,
                         name='pending'),
-                re_path(r'^list$',
+                re_path(r'^list$', 
                         testee.exam_list,
                         name='testee_exam_list'),
                 re_path(r'^favorite_question_list$',

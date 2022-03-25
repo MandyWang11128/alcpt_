@@ -237,7 +237,6 @@ def user_multiCreate(request):
 
         return render(request, 'user/multi_create_user.html', locals())
 
-
 # 更改使用者
 @permission_check(UserType.SystemManager)
 def user_edit(request, reg_id):
@@ -252,7 +251,6 @@ def user_edit(request, reg_id):
 
         try:
             edited_user = User.objects.get(reg_id=reg_id)
-
             edited_user.name = request.POST.get('name')
             edited_user.email = request.POST.get('email')
             edited_user.gender = int(request.POST.get('gender'))
@@ -332,6 +330,18 @@ def user_edit(request, reg_id):
         except:
             messages.error(request, "User doesn't exist, user register id - {}".format(reg_id))
             return redirect('user_list')
+
+# 刪除使用者
+def user_del(request,reg_id):
+    try:
+        user = User.objects.get(reg_id=reg_id)
+        user.delete()
+        messages.success(request, _("Successfully deleted user."))
+        return redirect('user_list')
+    except ObjectDoesNotExist:
+        messages.error(request,_("ERROR!"))
+        return redirect('user_list')
+    return redirect('user_list')
 
 
 # 單位列表
@@ -428,6 +438,7 @@ def unit_member_list(request, unit_kind, unit_name):
 # 回報類別列表
 @permission_check(UserType.SystemManager)
 def report_category_list(request):
+    report_categories = ReportCategory.objects.all()
     report_categories = ReportCategory.objects.all()
     privileges = UserType.__members__
     return render(request, 'report/report_category_list.html', locals())
